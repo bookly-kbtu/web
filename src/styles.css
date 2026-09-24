@@ -1571,3 +1571,26 @@ label.checkbox input {
     align-items: flex-start;
   }
 }
+.avatar-field {
+  margin-bottom: 8px;
+}
+.avatar-field .profile-avatar {
+  width: 88px;
+  height: 88px;
+  margin-bottom: 12px;
+}
+.avatar-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.avatar-actions .text-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.avatar-actions .muted {
+  margin: 0;
+  font-size: 11px;
+}

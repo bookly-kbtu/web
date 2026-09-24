@@ -204,7 +204,11 @@ export async function api<T>(
       `${import.meta.env.VITE_API_URL || "/api/v1"}${path}`,
       {
         ...options,
-        headers: { "Content-Type": "application/json", ...options.headers },
+        // FormData sets its own multipart boundary.
+        headers:
+          options.body instanceof FormData
+            ? options.headers
+            : { "Content-Type": "application/json", ...options.headers },
       },
     );
   } catch {
@@ -313,6 +317,14 @@ export function price(service: Service) {
     service.price_max_amount !== service.price_min_amount
     ? `${format(service.price_min_amount)} – ${format(service.price_max_amount)}`
     : format(service.price_min_amount);
+}
+
+export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
+export function upload(file: File): RequestInit {
+  const body = new FormData();
+  body.append("file", file);
+  return { method: "POST", body };
 }
 
 export const json = (method: string, body?: unknown): RequestInit => ({

@@ -2,18 +2,28 @@ import {
   lazy,
   Suspense,
   useEffect,
+  useRef,
   useState,
   type FormEvent,
   type ReactNode,
 } from "react";
-import { Bell, CalendarDays, Check, LogOut, UserRound } from "lucide-react";
+import {
+  Bell,
+  CalendarDays,
+  Camera,
+  Check,
+  LogOut,
+  UserRound,
+} from "lucide-react";
 import {
   api,
   dateTime,
   hasRole,
   json,
+  MAX_IMAGE_BYTES,
   money,
   statusLabels,
+  upload,
   type Booking,
   type Call,
   type ClientProfile,
@@ -99,7 +109,6 @@ function Profile({ call }: { call: Call }) {
   const [profile, setProfile] = useState<ClientProfile | null>(null);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [avatar, setAvatar] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -109,7 +118,6 @@ function Profile({ call }: { call: Call }) {
         setProfile(p);
         setFirstName(p.first_name || "");
         setLastName(p.last_name || "");
-        setAvatar(p.avatar_url || "");
       })
       .catch((e) => setError(e.message));
   }, [call]);
@@ -125,7 +133,6 @@ function Profile({ call }: { call: Call }) {
           json("PATCH", {
             first_name: firstName.trim(),
             last_name: lastName.trim() || null,
-            avatar_url: avatar.trim() || null,
           }),
         ),
       );
@@ -139,9 +146,12 @@ function Profile({ call }: { call: Call }) {
   if (!profile) return <Status error={error} />;
   return (
     <form className="panel-form" onSubmit={save}>
-      <div className="profile-avatar">
-        {avatar ? <img src={avatar} alt="" /> : <UserRound size={26} />}
-      </div>
+      <AvatarField
+        call={call}
+        path="/users/me/avatar"
+        url={profile.avatar_url}
+        changed={(p: ClientProfile) => setProfile(p)}
+      />
       <p className="muted">{profile.phone}</p>
       <label>
         Имя
@@ -158,15 +168,6 @@ function Profile({ call }: { call: Call }) {
           maxLength={80}
           value={lastName}
           onChange={(e) => setLastName(e.target.value)}
-        />
-      </label>
-      <label>
-        Ссылка на фото
-        <input
-          type="url"
-          value={avatar}
-          onChange={(e) => setAvatar(e.target.value)}
-          placeholder="https://…"
         />
       </label>
       <button className="primary" disabled={busy}>
@@ -361,6 +362,83 @@ function notificationTitle(n: Notification) {
       booking_cancelled: "Запись отменена",
       booking_reminder: "Напоминание о записи",
     }[n.notification_type] || "Уведомление"
+  );
+}
+
+// AvatarField uploads immediately on file choice; the profile form saves only text fields.
+export function AvatarField<T extends { avatar_url: string | null }>({
+  call,
+  path,
+  url,
+  changed,
+}: {
+  call: Call;
+  path: string;
+  url: string | null;
+  changed: (profile: T) => void;
+}) {
+  const input = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  async function run(request: RequestInit) {
+    setBusy(true);
+    setError("");
+    try {
+      changed(await call<T>(path, request));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+      if (input.current) input.current.value = "";
+    }
+  }
+  function choose(file?: File) {
+    if (!file) return;
+    if (file.size > MAX_IMAGE_BYTES)
+      return setError("Фото должно быть не больше 5 МБ.");
+    run(upload(file));
+  }
+  return (
+    <div className="avatar-field">
+      <div className="profile-avatar">
+        {url ? <img src={url} alt="Фото профиля" /> : <UserRound size={26} />}
+      </div>
+      <div className="avatar-actions">
+        <input
+          ref={input}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          hidden
+          aria-label="Выбрать фото"
+          onChange={(e) => choose(e.target.files?.[0])}
+        />
+        <button
+          type="button"
+          className="text-button"
+          disabled={busy}
+          onClick={() => input.current?.click()}
+        >
+          <Camera size={15} />
+          {busy ? "Загружаем…" : url ? "Сменить фото" : "Загрузить фото"}
+        </button>
+        {url && (
+          <button
+            type="button"
+            className="text-button"
+            disabled={busy}
+            onClick={() => confirm("Удалить фото?") && run(json("DELETE"))}
+          >
+            Удалить
+          </button>
+        )}
+        <small className="muted">JPEG, PNG или WebP, до 5 МБ</small>
+      </div>
+      {error && (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
   );
 }
 

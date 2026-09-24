@@ -15,7 +15,7 @@ import {
   type ScheduleException,
   type WorkingHour,
 } from "./api";
-import { BookingRow, Feedback, Status } from "./Account";
+import { AvatarField, BookingRow, Feedback, Status } from "./Account";
 
 type Section = "profile" | "locations" | "services" | "schedule" | "bookings";
 
@@ -105,7 +105,6 @@ function ProfileForm({
 }) {
   const [name, setName] = useState(profile?.display_name || "");
   const [description, setDescription] = useState(profile?.description || "");
-  const [avatar, setAvatar] = useState(profile?.avatar_url || "");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -121,7 +120,6 @@ function ProfileForm({
           json(profile ? "PATCH" : "POST", {
             display_name: name.trim(),
             description: description.trim() || null,
-            avatar_url: avatar.trim() || null,
           }),
         ),
       );
@@ -134,6 +132,14 @@ function ProfileForm({
   }
   return (
     <form className="panel-form" onSubmit={submit}>
+      {profile && (
+        <AvatarField
+          call={call}
+          path="/masters/me/avatar"
+          url={profile.avatar_url}
+          changed={saved}
+        />
+      )}
       <label>
         Имя для клиентов
         <input
@@ -150,15 +156,6 @@ function ProfileForm({
           maxLength={2000}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-        />
-      </label>
-      <label>
-        Ссылка на фото
-        <input
-          type="url"
-          value={avatar}
-          onChange={(e) => setAvatar(e.target.value)}
-          placeholder="https://…"
         />
       </label>
       <button className="primary" disabled={busy}>
