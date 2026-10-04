@@ -6,7 +6,7 @@ import {
   Mic,
   Navigation,
   SendHorizontal,
-  Sparkles,
+  Bot,
   Square,
   Volume2,
   VolumeX,
@@ -133,6 +133,7 @@ export default function Assistant({
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    if (messages.length === 0) return;
     feed.current?.scrollTo({ top: feed.current.scrollHeight, behavior: "smooth" });
   }, [messages, sending]);
 
@@ -318,7 +319,7 @@ export default function Assistant({
             >
               {message.role === "assistant" && (
                 <span className="bubble-avatar" aria-hidden="true">
-                  <Sparkles size={15} />
+                  <Bot size={17} strokeWidth={1.9} />
                 </span>
               )}
               <div className="bubble-stack">
@@ -440,7 +441,7 @@ export default function Assistant({
         {sending && (
           <div className="bubble-row ai">
             <span className="bubble-avatar" aria-hidden="true">
-              <Sparkles size={15} />
+              <Bot size={17} strokeWidth={1.9} />
             </span>
             <div className="bubble thinking" role="status" aria-label="Ассистент печатает">
               <span />

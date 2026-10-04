@@ -1692,13 +1692,13 @@ label.checkbox input {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 30px 0 22px;
+  gap: 8px;
+  padding: 56px 0 30px;
   text-align: center;
 }
 .hero-mic-zone strong {
   font-size: 16px;
-  margin-top: 16px;
+  margin-top: 34px;
 }
 .hero-mic-zone span {
   color: var(--as-muted);
@@ -1769,12 +1769,12 @@ label.checkbox input {
   flex-shrink: 0;
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  background: var(--as-surface);
-  border: 1px solid var(--as-line);
-  color: var(--coral);
+  background: radial-gradient(circle at 32% 28%, #ff7a8a, var(--accent) 78%);
+  color: white;
+  box-shadow: 0 3px 10px rgba(197, 46, 73, 0.35);
   margin-bottom: 4px;
 }
 .bubble-stack {
@@ -2287,7 +2287,8 @@ label.checkbox input {
   }
 }
 
-body.dark-screen {
+html.dark-screen,
+html.dark-screen body {
   background: var(--as-bg);
 }
 .brand-logo {

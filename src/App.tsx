@@ -73,8 +73,9 @@ export default function App() {
   // The assistant screen is dark; the body must not bleed light through
   // header margins, layout gaps and overscroll.
   useEffect(() => {
-    document.body.classList.toggle("dark-screen", view === "assistant");
-    return () => document.body.classList.remove("dark-screen");
+    // On <html>, not <body>: the root background shows through layout gaps.
+    document.documentElement.classList.toggle("dark-screen", view === "assistant");
+    return () => document.documentElement.classList.remove("dark-screen");
   }, [view]);
 
   useEffect(() => {
