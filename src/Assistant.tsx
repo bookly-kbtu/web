@@ -34,6 +34,7 @@ interface AiBooking {
 interface AiChatResponse {
   conversation_id: string;
   reply: string;
+  voice_reply: string;
   state: "clarify" | "recommend" | "pick_slot" | "confirm" | "booked" | "failed";
   candidates: AiCandidate[];
   slots: Slot[];
@@ -138,7 +139,10 @@ export default function Assistant({
   }, [messages, sending]);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const ttsAbort = useRef<AbortController | null>(null);
   function stopSpeaking() {
+    ttsAbort.current?.abort();
+    ttsAbort.current = null;
     audioRef.current?.pause();
     audioRef.current = null;
     window.speechSynthesis?.cancel();
@@ -174,10 +178,55 @@ export default function Assistant({
     return () => synth.removeEventListener("voiceschanged", pick);
   }, []);
 
+  // Progressive playback: mp3 chunks go straight into a MediaSource buffer,
+  // so the voice starts before the whole file is generated.
+  function playStream(stream: ReadableStream<Uint8Array>, signal: AbortSignal) {
+    return new Promise<void>((resolve, reject) => {
+      const source = new MediaSource();
+      const audio = new Audio(URL.createObjectURL(source));
+      audioRef.current = audio;
+      source.addEventListener(
+        "sourceopen",
+        async () => {
+          const buffer = source.addSourceBuffer("audio/mpeg");
+          const reader = stream.getReader();
+          const append = (chunk: Uint8Array) =>
+            new Promise<void>((done, fail) => {
+              buffer.addEventListener("updateend", () => done(), { once: true });
+              buffer.addEventListener("error", () => fail(new Error("buffer")), {
+                once: true,
+              });
+              buffer.appendBuffer(chunk as BufferSource);
+            });
+          try {
+            let started = false;
+            for (;;) {
+              if (signal.aborted) break;
+              const { done, value } = await reader.read();
+              if (done) break;
+              await append(value);
+              if (!started) {
+                started = true;
+                await audio.play();
+              }
+            }
+            if (source.readyState === "open") source.endOfStream();
+            resolve();
+          } catch (e) {
+            reject(e as Error);
+          }
+        },
+        { once: true },
+      );
+    });
+  }
+
   // Neural TTS from the AI service; browser speechSynthesis is the fallback.
   async function speak(text: string) {
-    if (!voiceOnRef.current) return;
+    if (!voiceOnRef.current || !text) return;
     stopSpeaking();
+    const controller = new AbortController();
+    ttsAbort.current = controller;
     try {
       const token = readStorage<{ access_token?: string } | null>(
         "bookly-session",
@@ -191,18 +240,27 @@ export default function Assistant({
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ text }),
+        signal: controller.signal,
       });
-      if (!response.ok) throw new Error(`tts ${response.status}`);
-      const url = URL.createObjectURL(await response.blob());
-      if (!voiceOnRef.current) {
-        URL.revokeObjectURL(url);
-        return;
+      if (!response.ok || !response.body) throw new Error(`tts ${response.status}`);
+      const canStream =
+        "MediaSource" in window && MediaSource.isTypeSupported("audio/mpeg");
+      if (canStream) {
+        await playStream(response.body, controller.signal);
+      } else {
+        // Safari: MSE rarely accepts mp3 — play the full blob instead.
+        const url = URL.createObjectURL(await response.blob());
+        if (controller.signal.aborted) {
+          URL.revokeObjectURL(url);
+          return;
+        }
+        const audio = new Audio(url);
+        audioRef.current = audio;
+        audio.onended = () => URL.revokeObjectURL(url);
+        await audio.play();
       }
-      const audio = new Audio(url);
-      audioRef.current = audio;
-      audio.onended = () => URL.revokeObjectURL(url);
-      await audio.play();
-    } catch {
+    } catch (e) {
+      if ((e as Error).name === "AbortError" || controller.signal.aborted) return;
       if (!voiceOnRef.current || !window.speechSynthesis) return;
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = "ru-RU";
@@ -243,7 +301,7 @@ export default function Assistant({
               : undefined,
         },
       ]);
-      speak(reply);
+      speak(plainText(response.voice_reply || "") || reply);
     } catch (e) {
       setMessages((old) => [
         ...old,
