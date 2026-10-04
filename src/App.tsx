@@ -11,7 +11,6 @@ import {
   Map,
   MapPin,
   Search,
-  SlidersHorizontal,
   Sparkles,
   UserRound,
   X,
@@ -66,7 +65,6 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(() =>
     readStorage("bookly-session", null),
   );
-  const [filters, setFilters] = useState(false);
   const [layout, setLayout] = useState<"grid" | "map">("grid");
   const [stats, setStats] = useState<MarketStats | null>(null);
 
@@ -417,15 +415,6 @@ export default function App() {
                       ))}
                     </select>
                   </div>
-                  <button
-                    className={`filter-button ${filters ? "active" : ""}`}
-                    aria-expanded={filters}
-                    aria-label="Категории"
-                    title="Категории"
-                    onClick={() => setFilters(!filters)}
-                  >
-                    <SlidersHorizontal size={20} />
-                  </button>
                 </>
               )}
             </div>
@@ -453,55 +442,6 @@ export default function App() {
                     {c.name}
                   </button>
                 ))}
-              </div>
-            )}
-            {view === "catalog" && filters && (
-              <div
-                className="filter-sheet-backdrop"
-                onClick={() => setFilters(false)}
-              >
-                <div
-                  className="filter-sheet"
-                  role="dialog"
-                  aria-label="Категории"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="filter-sheet-head">
-                    <h3>Категории</h3>
-                    <button
-                      className="icon-button"
-                      aria-label="Закрыть"
-                      onClick={() => setFilters(false)}
-                    >
-                      <X size={18} />
-                    </button>
-                  </div>
-                  <div className="filter-sheet-list">
-                    <button
-                      className={!category ? "selected" : ""}
-                      onClick={() => {
-                        setCategory("");
-                        setPage(0);
-                        setFilters(false);
-                      }}
-                    >
-                      Все места
-                    </button>
-                    {categories.map((c) => (
-                      <button
-                        key={c.id}
-                        className={category === c.id ? "selected" : ""}
-                        onClick={() => {
-                          setCategory(c.id);
-                          setPage(0);
-                          setFilters(false);
-                        }}
-                      >
-                        {c.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </div>
             )}
             {filtersError && view === "catalog" && (

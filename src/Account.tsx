@@ -72,11 +72,6 @@ export default function Account({
         <div>
           <h2>{tabs.find(([id]) => id === tab)?.[1] || "Кабинет"}</h2>
         </div>
-        {tab === "profile" && (
-          <button className="text-button" onClick={logout}>
-            <LogOut size={15} /> Выйти
-          </button>
-        )}
       </div>
       <div className="detail-tabs account-tabs" role="tablist">
         {tabs.map(([id, label]) => (
@@ -92,7 +87,14 @@ export default function Account({
         ))}
       </div>
       <Suspense fallback={<p className="muted">Загружаем…</p>}>
-        {tab === "profile" && <Profile call={call} />}
+        {tab === "profile" && (
+          <>
+            <Profile call={call} />
+            <button className="logout-bottom" onClick={logout}>
+              <LogOut size={15} /> Выйти
+            </button>
+          </>
+        )}
         {tab === "bookings" && <ClientBookings call={call} />}
         {tab === "notifications" && (
           <Notifications call={call} changed={unreadChanged} />
@@ -224,9 +226,20 @@ function ClientBookings({ call }: { call: Call }) {
         <p>Выберите мастера во вкладке «Онлайн-запись».</p>
       </div>
     );
+  // Active upcoming bookings first (soonest on top), history below.
+  const now = Date.now();
+  const active = (b: Booking) =>
+    (b.status === "pending" || b.status === "confirmed") &&
+    new Date(b.starts_at).getTime() > now;
+  const sorted = [...items].sort((a, b) => {
+    if (active(a) !== active(b)) return active(a) ? -1 : 1;
+    const at = new Date(a.starts_at).getTime();
+    const bt = new Date(b.starts_at).getTime();
+    return active(a) ? at - bt : bt - at;
+  });
   return (
     <div className="booking-list">
-      {items.map((b) => (
+      {sorted.map((b) => (
         <BookingRow
           key={b.id}
           booking={b}

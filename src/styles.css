@@ -2575,8 +2575,7 @@ footer {
 }
 @media (max-width: 700px) {
   .assistant-feed {
-    /* keep the first bubbles clear of the floating bell */
-    padding-top: calc(70px + env(safe-area-inset-top));
+    padding-top: calc(20px + env(safe-area-inset-top));
   }
 }
 footer {
@@ -2728,7 +2727,7 @@ footer {
     flex-shrink: 0;
   }
   .catalog {
-    padding-top: calc(64px + env(safe-area-inset-top));
+    padding-top: calc(18px + env(safe-area-inset-top));
   }
   .account-tabs {
     display: none;
@@ -2753,4 +2752,85 @@ footer {
 }
 .filter-button.active {
   color: var(--accent);
+}
+
+/* Bookings as pearl cards: active upcoming first, history dimmed */
+.booking-list {
+  gap: 12px;
+  display: flex;
+  flex-direction: column;
+}
+.service.booking-row {
+  background: var(--glass-bg-strong);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: var(--as-shadow), var(--glass-edge);
+  border-radius: 18px;
+  padding: 15px 16px;
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+  border-bottom: 1px solid var(--glass-border);
+  flex-direction: row;
+}
+.service.booking-row h4 {
+  font-size: 15.5px;
+  margin-bottom: 3px;
+}
+.service.booking-row p {
+  font-size: 12.5px;
+  color: var(--as-muted);
+  margin: 0 0 8px;
+}
+.service.booking-row .status {
+  font-size: 11.5px;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: rgba(255, 89, 108, 0.1);
+  color: var(--accent);
+  border: none;
+}
+.service.booking-row .status-completed,
+.service.booking-row .status-cancelled_by_client,
+.service.booking-row .status-cancelled_by_master,
+.service.booking-row .status-no_show {
+  background: rgba(137, 121, 128, 0.12);
+  color: var(--as-muted);
+}
+.service.booking-row:has(.status-cancelled_by_client),
+.service.booking-row:has(.status-cancelled_by_master),
+.service.booking-row:has(.status-completed),
+.service.booking-row:has(.status-no_show) {
+  opacity: 0.62;
+}
+.service.booking-row .row-side {
+  align-items: flex-end;
+  gap: 8px;
+}
+.service.booking-row .row-side strong {
+  font-size: 15px;
+}
+.service.booking-row .text-button {
+  font-size: 13px;
+}
+
+/* Logout lives at the bottom of the profile, out of the bell's way */
+.logout-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 420px;
+  margin-top: 26px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(197, 46, 73, 0.22);
+  background: var(--glass-bg);
+  color: var(--accent);
+  font-size: 14.5px;
+  font-weight: 600;
 }
