@@ -70,12 +70,13 @@ export default function Account({
     <section className="catalog panel-page">
       <div className="results-heading">
         <div>
-          <span className="section-index">03</span>
-          <h2>Кабинет</h2>
+          <h2>{tabs.find(([id]) => id === tab)?.[1] || "Кабинет"}</h2>
         </div>
-        <button className="text-button" onClick={logout}>
-          <LogOut size={15} /> Выйти
-        </button>
+        {tab === "profile" && (
+          <button className="text-button" onClick={logout}>
+            <LogOut size={15} /> Выйти
+          </button>
+        )}
       </div>
       <div className="detail-tabs account-tabs" role="tablist">
         {tabs.map(([id, label]) => (

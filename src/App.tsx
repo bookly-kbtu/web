@@ -211,7 +211,7 @@ export default function App() {
       : firms;
   return (
     <>
-      <header className={view === "assistant" ? "header assistant-header" : "header"}>
+      <header className="header">
         <a
           className="brand"
           href="#"
@@ -269,7 +269,7 @@ export default function App() {
           <ArrowUpRight size={15} />
         </button>
       </header>
-      {view === "assistant" && session && (
+      {session && (
         <button
           className="floating-bell"
           aria-label={`Уведомления${unread ? `: ${unread} новых` : ""}`}
@@ -428,7 +428,7 @@ export default function App() {
               )}
             </div>
             {view === "catalog" && (
-              <div className={`categories ${filters ? "expanded" : ""}`}>
+              <div className="categories">
                 <button
                   className={!category ? "selected" : ""}
                   onClick={() => {
@@ -451,6 +451,55 @@ export default function App() {
                     {c.name}
                   </button>
                 ))}
+              </div>
+            )}
+            {view === "catalog" && filters && (
+              <div
+                className="filter-sheet-backdrop"
+                onClick={() => setFilters(false)}
+              >
+                <div
+                  className="filter-sheet"
+                  role="dialog"
+                  aria-label="Категории"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="filter-sheet-head">
+                    <h3>Категории</h3>
+                    <button
+                      className="icon-button"
+                      aria-label="Закрыть"
+                      onClick={() => setFilters(false)}
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                  <div className="filter-sheet-list">
+                    <button
+                      className={!category ? "selected" : ""}
+                      onClick={() => {
+                        setCategory("");
+                        setPage(0);
+                        setFilters(false);
+                      }}
+                    >
+                      Все места
+                    </button>
+                    {categories.map((c) => (
+                      <button
+                        key={c.id}
+                        className={category === c.id ? "selected" : ""}
+                        onClick={() => {
+                          setCategory(c.id);
+                          setPage(0);
+                          setFilters(false);
+                        }}
+                      >
+                        {c.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
             {filtersError && view === "catalog" && (

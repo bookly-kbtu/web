@@ -2588,3 +2588,158 @@ footer {
 .catalog {
   padding-top: 26px;
 }
+
+/* Minimal pass: no header on phones, list catalog, filter sheet */
+.section-index {
+  display: none;
+}
+/* Firms as a single clean list, not a grid */
+.firm-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 720px;
+}
+.firm-card {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  grid-template-rows: auto auto auto auto;
+  column-gap: 14px;
+  align-items: start;
+  padding: 10px;
+  border-radius: 20px;
+}
+.firm-card .card-media {
+  grid-row: 1 / 5;
+  width: 96px;
+  height: 96px;
+  aspect-ratio: auto;
+  border-radius: 14px;
+  overflow: hidden;
+  position: relative;
+  margin: 0;
+}
+.firm-card .card-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.firm-card .save-button {
+  width: 30px;
+  height: 30px;
+  top: 4px;
+  right: 4px;
+}
+.firm-card .card-meta {
+  font-size: 11px;
+  margin: 2px 0 0;
+}
+.firm-card h3 {
+  font-size: 16px;
+  margin: 2px 0;
+}
+.firm-card .address {
+  font-size: 12.5px;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.firm-card .card-footer {
+  border-top: none;
+  padding: 4px 0 0;
+  font-size: 11.5px;
+  color: var(--as-muted);
+}
+.skeleton {
+  width: 100%;
+}
+/* Filter sheet: categories as a dialog */
+.filter-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgba(48, 16, 24, 0.25);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.filter-sheet {
+  width: 100%;
+  max-width: 560px;
+  max-height: 72dvh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 26px 26px 0 0;
+  background: rgba(255, 249, 250, 0.92);
+  backdrop-filter: blur(26px) saturate(170%);
+  -webkit-backdrop-filter: blur(26px) saturate(170%);
+  border: 1px solid var(--glass-border);
+  padding: 18px 18px calc(18px + env(safe-area-inset-bottom));
+}
+.filter-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.filter-sheet-head h3 {
+  font-size: 18px;
+}
+.filter-sheet-list {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.filter-sheet-list button {
+  text-align: left;
+  padding: 13px 16px;
+  border-radius: 14px;
+  font-size: 15px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+}
+.filter-sheet-list button.selected {
+  background: radial-gradient(circle at 32% 28%, #ff8a99, var(--accent) 80%);
+  color: white;
+  border-color: rgba(255, 255, 255, 0.55);
+}
+@media (max-width: 700px) {
+  .header {
+    display: none;
+  }
+  .search-bar {
+    border-radius: 22px;
+  }
+  .categories {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    max-height: none;
+    padding-bottom: 4px;
+    margin-right: -5%;
+    padding-right: 5%;
+  }
+  .categories button {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .catalog {
+    padding-top: calc(64px + env(safe-area-inset-top));
+  }
+  .account-tabs {
+    display: none;
+  }
+}
+@media (min-width: 701px) {
+  .filter-sheet-backdrop {
+    align-items: center;
+    padding: 20px;
+  }
+  .filter-sheet {
+    border-radius: 26px;
+  }
+}
