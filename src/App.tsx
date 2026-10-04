@@ -70,6 +70,13 @@ export default function App() {
   const [layout, setLayout] = useState<"grid" | "map">("map");
   const [stats, setStats] = useState<MarketStats | null>(null);
 
+  // The assistant screen is dark; the body must not bleed light through
+  // header margins, layout gaps and overscroll.
+  useEffect(() => {
+    document.body.classList.toggle("dark-screen", view === "assistant");
+    return () => document.body.classList.remove("dark-screen");
+  }, [view]);
+
   useEffect(() => {
     let active = true;
     api<MarketStats>("/market/stats")
@@ -210,7 +217,7 @@ export default function App() {
       : firms;
   return (
     <>
-      <header className="header">
+      <header className={view === "assistant" ? "header dark" : "header"}>
         <a
           className="brand"
           href="#"
@@ -220,10 +227,7 @@ export default function App() {
             reset();
           }}
         >
-          <span className="brand-mark" aria-hidden="true">
-            B<Sparkles size={12} />
-          </span>
-          Bookly
+          <img className="brand-logo" src="/logo-square.png" alt="Bookly" />
         </a>
         <nav aria-label="Основная навигация">
           <button
@@ -638,15 +642,15 @@ export default function App() {
       )}
       <footer>
         <a className="brand" href="#">
-          <span className="brand-mark" aria-hidden="true">
-            B<Sparkles size={12} />
-          </span>
-          Bookly
+          <img className="brand-logo" src="/logo-square.png" alt="Bookly" />
         </a>
         <span>Маленькие перемены. Хорошее настроение.</span>
         <span>© {new Date().getFullYear()} Bookly</span>
       </footer>
-      <nav className="tab-bar" aria-label="Нижняя навигация">
+      <nav
+        className={view === "assistant" ? "tab-bar dark" : "tab-bar"}
+        aria-label="Нижняя навигация"
+      >
         <button
           className={view === "assistant" ? "active" : ""}
           onClick={() => setView("assistant")}
