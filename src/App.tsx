@@ -643,14 +643,7 @@ export default function App() {
       </footer>
       <nav className="tab-bar" aria-label="Нижняя навигация">
         <button
-          className={view === "assistant" ? "active" : ""}
-          onClick={() => setView("assistant")}
-        >
-          <Sparkles size={21} />
-          <span>Ассистент</span>
-        </button>
-        <button
-          className={view === "catalog" || view === "saved" ? "active" : ""}
+          className={view === "catalog" ? "active" : ""}
           onClick={() => setView("catalog")}
         >
           <Search size={21} />
@@ -664,6 +657,20 @@ export default function App() {
         >
           <CalendarDays size={21} />
           <span>Записи</span>
+        </button>
+        <button
+          className={view === "assistant" ? "active" : ""}
+          onClick={() => setView("assistant")}
+        >
+          <Sparkles size={21} />
+          <span>Ассистент</span>
+        </button>
+        <button
+          className={view === "saved" ? "active" : ""}
+          onClick={() => setView("saved")}
+        >
+          <Heart size={21} />
+          <span>Избранное</span>
         </button>
         <button
           className={

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   CalendarCheck,
   Check,
@@ -9,7 +10,14 @@ import {
   Bot,
   Square,
 } from "lucide-react";
-import { money, dateTime, type Call, type Slot } from "./api";
+import {
+  money,
+  dateTime,
+  statusLabels,
+  type BookingStatus,
+  type Call,
+  type Slot,
+} from "./api";
 
 export interface AiCandidate {
   master_id: string;
@@ -29,6 +37,12 @@ interface AiBooking {
   currency: string;
   address?: string;
 }
+interface AiAgendaItem {
+  id: string;
+  service_name_snapshot: string;
+  starts_at: string;
+  status: BookingStatus;
+}
 interface AiChatResponse {
   conversation_id: string;
   reply: string;
@@ -36,6 +50,7 @@ interface AiChatResponse {
   candidates: AiCandidate[];
   slots: Slot[];
   booking: AiBooking | null;
+  bookings: AiAgendaItem[];
 }
 interface Message {
   role: "user" | "assistant";
@@ -43,6 +58,7 @@ interface Message {
   candidates?: AiCandidate[];
   slots?: Slot[];
   booking?: AiBooking | null;
+  agenda?: AiAgendaItem[];
   quickReplies?: string[];
 }
 
@@ -69,7 +85,7 @@ const SpeechRecognitionImpl: (new () => Recognition) | undefined =
 const SUGGESTIONS = [
   "«Барбер рядом на завтра»",
   "«Маникюр до 10 000 ₸»",
-  "«Брови на этой неделе»",
+  "«Какие у меня записи?»",
 ];
 
 function greeting() {
@@ -164,6 +180,7 @@ export default function Assistant({
           candidates: response.candidates,
           slots: response.slots,
           booking: response.booking,
+          agenda: response.bookings,
           quickReplies:
             response.state === "pick_slot"
               ? ["Другая дата", "А дешевле есть?"]
@@ -192,7 +209,12 @@ export default function Assistant({
   }
 
   function startListening() {
-    if (!SpeechRecognitionImpl) return;
+    if (!SpeechRecognitionImpl) {
+      setMicError(
+        "Голосовой ввод не поддерживается в этом браузере. Откройте сайт в Chrome или Safari.",
+      );
+      return;
+    }
     if (!signedIn) return login();
     if (listening) return stopListening(false);
     setMicError("");
@@ -228,7 +250,6 @@ export default function Assistant({
   }
 
   const empty = messages.length === 0;
-  const hasMic = !!SpeechRecognitionImpl;
   return (
     <section className="assistant" aria-label="Голосовой ассистент">
       <div className="assistant-feed" ref={feed}>
@@ -240,24 +261,8 @@ export default function Assistant({
             </p>
             <h1 className="hero-title">
               <span>Куда вас</span>
-              <span className="accent">
-                записать?
-                <span className="hero-star" aria-hidden="true">
-                  ✳
-                </span>
-              </span>
+              <span className="accent">записать?</span>
             </h1>
-            <div className="hero-mic-zone">
-              <button
-                className="hero-mic"
-                aria-label="Нажмите и говорите"
-                onClick={hasMic ? startListening : () => inputRef.current?.focus()}
-              >
-                <Mic size={34} strokeWidth={1.8} />
-              </button>
-              <strong>{hasMic ? "Нажмите и говорите" : "Напишите запрос"}</strong>
-              <span>услуга, день и бюджет — остальное сделаю сама</span>
-            </div>
             <div className="assistant-suggestions">
               <span className="suggestions-label">Например</span>
               {SUGGESTIONS.map((text) => (
@@ -347,6 +352,25 @@ export default function Assistant({
                         {reply}
                       </button>
                     ))}
+                  </div>
+                )}
+                {!!message.agenda?.length && (
+                  <div className="ai-agenda">
+                    {message.agenda.slice(0, 6).map((item) => (
+                      <div className="ai-agenda-row" key={item.id}>
+                        <div>
+                          <strong>{item.service_name_snapshot}</strong>
+                          <span>{dateTime(item.starts_at)}</span>
+                        </div>
+                        <span className={`agenda-status ${item.status}`}>
+                          {statusLabels[item.status] ?? item.status}
+                        </span>
+                      </div>
+                    ))}
+                    <button className="agenda-all" onClick={openBookings}>
+                      <CalendarCheck size={15} />
+                      Все записи
+                    </button>
                   </div>
                 )}
                 {message.booking && (
@@ -446,20 +470,19 @@ export default function Assistant({
               <SendHorizontal size={19} />
             </button>
           </form>
-          {hasMic && (
-            <button
-              className="mic-button"
-              aria-label="Сказать голосом"
-              onClick={startListening}
-            >
-              <Mic size={24} />
-            </button>
-          )}
+          <button
+            className="mic-button"
+            aria-label="Сказать голосом"
+            onClick={startListening}
+          >
+            <Mic size={24} />
+          </button>
         </div>
       </div>
 
-      {listening && (
-        <div className="listen-overlay" role="dialog" aria-label="Голосовой ввод">
+      {listening &&
+        createPortal(
+          <div className="listen-overlay" role="dialog" aria-label="Голосовой ввод">
           <span className="listen-pill">
             <span className="listen-dot" /> Слушаю…
           </span>
@@ -498,8 +521,9 @@ export default function Assistant({
             </div>
             <span className="listen-hint">Нажмите ■, когда закончите</span>
           </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </section>
   );
 }
