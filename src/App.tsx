@@ -211,7 +211,7 @@ export default function App() {
       : firms;
   return (
     <>
-      <header className="header">
+      <header className={view === "assistant" ? "header assistant-header" : "header"}>
         <a
           className="brand"
           href="#"
@@ -269,6 +269,16 @@ export default function App() {
           <ArrowUpRight size={15} />
         </button>
       </header>
+      {view === "assistant" && session && (
+        <button
+          className="floating-bell"
+          aria-label={`Уведомления${unread ? `: ${unread} новых` : ""}`}
+          onClick={() => openAccount("notifications")}
+        >
+          <Bell size={20} />
+          {unread > 0 && <span className="nav-count">{unread}</span>}
+        </button>
+      )}
       {view === "assistant" || view === "masters" || view === "account" ? (
         <main className={view === "assistant" ? "assistant-main" : ""}>
           <Suspense

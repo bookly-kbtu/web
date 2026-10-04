@@ -2423,3 +2423,72 @@ label.checkbox input {
   color: var(--accent);
 }
 
+
+/* Dock as two choices: text or voice; the input appears on demand */
+.dock-choices {
+  display: flex;
+  gap: 10px;
+}
+.dock-choice {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 15px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--as-text);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: var(--as-shadow), var(--glass-edge);
+}
+.dock-choice.voice {
+  background: radial-gradient(circle at 32% 28%, #ff8a99, var(--accent) 80%);
+  color: white;
+  border-color: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 10px 24px var(--as-glow), var(--glass-edge);
+}
+.dock-choice.voice:hover:not(:disabled) {
+  color: white;
+}
+
+/* Assistant on phones: no header bar, just a floating bell */
+.floating-bell {
+  display: none;
+  position: fixed;
+  top: calc(12px + env(safe-area-inset-top));
+  right: 14px;
+  z-index: 45;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  place-items: center;
+  background: var(--glass-bg-strong);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: var(--as-shadow), var(--glass-edge);
+  color: var(--as-text);
+}
+.floating-bell .nav-count {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  background: var(--coral);
+  color: white;
+}
+@media (max-width: 700px) {
+  .header.assistant-header {
+    display: none;
+  }
+  .floating-bell {
+    display: grid;
+  }
+  .assistant {
+    height: calc(100dvh - 64px - env(safe-area-inset-bottom));
+  }
+}

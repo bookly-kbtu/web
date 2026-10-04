@@ -9,6 +9,7 @@ import {
   SendHorizontal,
   Bot,
   Square,
+  X,
 } from "lucide-react";
 import {
   money,
@@ -136,6 +137,7 @@ export default function Assistant({
   const [interim, setInterim] = useState("");
   const [sending, setSending] = useState(false);
   const [listening, setListening] = useState(false);
+  const [textMode, setTextMode] = useState(false);
   const [micError, setMicError] = useState("");
   const conversation = useRef<string | null>(null);
   const recognition = useRef<Recognition | null>(null);
@@ -446,7 +448,7 @@ export default function Assistant({
             {micError}
           </div>
         )}
-        <div className="dock-row">
+        {textMode ? (
           <form
             className="dock-input"
             onSubmit={(e) => {
@@ -454,8 +456,17 @@ export default function Assistant({
               send(input);
             }}
           >
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="Скрыть поле ввода"
+              onClick={() => setTextMode(false)}
+            >
+              <X size={18} />
+            </button>
             <input
               ref={inputRef}
+              autoFocus
               aria-label="Сообщение ассистенту"
               placeholder="Сообщение…"
               value={input}
@@ -470,14 +481,26 @@ export default function Assistant({
               <SendHorizontal size={19} />
             </button>
           </form>
-          <button
-            className="mic-button"
-            aria-label="Сказать голосом"
-            onClick={startListening}
-          >
-            <Mic size={24} />
-          </button>
-        </div>
+        ) : (
+          <div className="dock-choices">
+            <button
+              className="dock-choice"
+              aria-label="Написать текстом"
+              title="Написать текстом"
+              onClick={() => setTextMode(true)}
+            >
+              <Keyboard size={22} />
+            </button>
+            <button
+              className="dock-choice voice"
+              aria-label="Сказать голосом"
+              title="Сказать голосом"
+              onClick={startListening}
+            >
+              <Mic size={22} />
+            </button>
+          </div>
+        )}
       </div>
 
       {listening &&
@@ -499,7 +522,7 @@ export default function Assistant({
                 aria-label="Ввести текстом"
                 onClick={() => {
                   stopListening(true);
-                  setTimeout(() => inputRef.current?.focus(), 50);
+                  setTextMode(true);
                 }}
               >
                 <Keyboard size={20} />
