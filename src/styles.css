@@ -2841,3 +2841,12 @@ footer {
     grid-column: 1 / -1;
   }
 }
+
+.listen-lang-btn {
+  position: absolute;
+  top: calc(14px + env(safe-area-inset-top));
+  right: 16px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+}

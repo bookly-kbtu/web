@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import confetti from "canvas-confetti";
+import { addToCalendar } from "./calendar";
 import {
   CalendarCheck,
+  CalendarPlus,
   Check,
   Keyboard,
   Mic,
@@ -186,6 +188,22 @@ export default function Assistant({
   const [listening, setListening] = useState(false);
   const [textMode, setTextMode] = useState(false);
   const [micError, setMicError] = useState("");
+  const [sttLang, setSttLang] = useState<"ru-RU" | "kk-KZ">(
+    () => (localStorage.getItem("bookly-stt-lang") as "ru-RU" | "kk-KZ") || "ru-RU",
+  );
+  const sttLangRef = useRef(sttLang);
+  sttLangRef.current = sttLang;
+
+  function toggleSttLang() {
+    const next = sttLangRef.current === "ru-RU" ? "kk-KZ" : "ru-RU";
+    setSttLang(next);
+    sttLangRef.current = next;
+    localStorage.setItem("bookly-stt-lang", next);
+    if (recognition.current) {
+      stopListening(true);
+      setTimeout(() => startListening(), 200);
+    }
+  }
   const conversation = useRef<string | null>(null);
   const recognition = useRef<Recognition | null>(null);
   const aborted = useRef(false);
@@ -292,7 +310,7 @@ export default function Assistant({
     if (listening) return stopListening(false);
     setMicError("");
     const rec = new SpeechRecognitionImpl();
-    rec.lang = "ru-RU";
+    rec.lang = sttLangRef.current;
     rec.interimResults = true;
     rec.continuous = false;
     aborted.current = false;
@@ -502,6 +520,19 @@ export default function Assistant({
                       )}
                     </dl>
                     <div className="ai-booking-actions">
+                      <button
+                        onClick={() =>
+                          addToCalendar({
+                            title: `${message.booking!.service_name_snapshot} — Bookly`,
+                            start: message.booking!.starts_at,
+                            end: message.booking!.ends_at,
+                            location: message.booking!.address,
+                          })
+                        }
+                      >
+                        <CalendarPlus size={16} />
+                        В календарь
+                      </button>
                       {message.booking.address && (
                         <a
                           href={`https://2gis.kz/search/${encodeURIComponent(message.booking.address)}`}
@@ -601,6 +632,13 @@ export default function Assistant({
       {listening &&
         createPortal(
           <div className="listen-overlay" role="dialog" aria-label="Голосовой ввод">
+          <button
+            className="listen-round listen-lang-btn"
+            aria-label="Язык распознавания"
+            onClick={toggleSttLang}
+          >
+            {sttLang === "ru-RU" ? "RU" : "KK"}
+          </button>
           <div className="listen-body">
             <span className="listen-orb" aria-hidden="true" />
             <p className={`listen-transcript${interim ? "" : " placeholder"}`}>

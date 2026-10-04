@@ -15,6 +15,7 @@ import {
   LogOut,
   UserRound,
 } from "lucide-react";
+import { addToCalendar } from "./calendar";
 import {
   api,
   dateTime,
@@ -287,7 +288,24 @@ export function BookingRow({
       </div>
       <div className="row-side">
         <strong>{money(booking.price_amount, booking.currency)}</strong>
-        <div className="row-actions">{actions}</div>
+        <div className="row-actions">
+          {(booking.status === "pending" || booking.status === "confirmed") &&
+            new Date(booking.starts_at) > new Date() && (
+              <button
+                className="text-button"
+                onClick={() =>
+                  addToCalendar({
+                    title: `${booking.service_name_snapshot} — Bookly`,
+                    start: booking.starts_at,
+                    end: booking.ends_at,
+                  })
+                }
+              >
+                В календарь
+              </button>
+            )}
+          {actions}
+        </div>
       </div>
     </article>
   );
