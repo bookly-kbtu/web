@@ -70,13 +70,6 @@ export default function App() {
   const [layout, setLayout] = useState<"grid" | "map">("map");
   const [stats, setStats] = useState<MarketStats | null>(null);
 
-  // The assistant screen is dark; the body must not bleed light through
-  // header margins, layout gaps and overscroll.
-  useEffect(() => {
-    // On <html>, not <body>: the root background shows through layout gaps.
-    document.documentElement.classList.toggle("dark-screen", view === "assistant");
-    return () => document.documentElement.classList.remove("dark-screen");
-  }, [view]);
 
   useEffect(() => {
     let active = true;
@@ -218,7 +211,7 @@ export default function App() {
       : firms;
   return (
     <>
-      <header className={view === "assistant" ? "header dark" : "header"}>
+      <header className="header">
         <a
           className="brand"
           href="#"
@@ -648,10 +641,7 @@ export default function App() {
         <span>Маленькие перемены. Хорошее настроение.</span>
         <span>© {new Date().getFullYear()} Bookly</span>
       </footer>
-      <nav
-        className={view === "assistant" ? "tab-bar dark" : "tab-bar"}
-        aria-label="Нижняя навигация"
-      >
+      <nav className="tab-bar" aria-label="Нижняя навигация">
         <button
           className={view === "assistant" ? "active" : ""}
           onClick={() => setView("assistant")}

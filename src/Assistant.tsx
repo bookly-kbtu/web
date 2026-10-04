@@ -138,13 +138,51 @@ export default function Assistant({
     feed.current?.scrollTo({ top: feed.current.scrollHeight, behavior: "smooth" });
   }, [messages, sending]);
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  // One reusable <audio> element for all TTS playback. Mobile browsers only
+  // allow play() started from a user gesture; an element "unlocked" once in
+  // a tap handler may then be reused for playback that starts after awaits.
+  const playerRef = useRef<HTMLAudioElement | null>(null);
   const ttsAbort = useRef<AbortController | null>(null);
+  const spokeByVoice = useRef(false);
+
+  function player(): HTMLAudioElement {
+    if (!playerRef.current) playerRef.current = new Audio();
+    return playerRef.current;
+  }
+
+  // Tiny silent WAV built on the fly: playing it inside the tap unlocks the
+  // element for later real playback (iOS/Android autoplay policy).
+  function unlockAudio() {
+    const samples = 8;
+    const buf = new ArrayBuffer(44 + samples * 2);
+    const v = new DataView(buf);
+    const text = (offset: number, s: string) => {
+      for (let i = 0; i < s.length; i++) v.setUint8(offset + i, s.charCodeAt(i));
+    };
+    text(0, "RIFF");
+    v.setUint32(4, 36 + samples * 2, true);
+    text(8, "WAVE");
+    text(12, "fmt ");
+    v.setUint32(16, 16, true);
+    v.setUint16(20, 1, true);
+    v.setUint16(22, 1, true);
+    v.setUint32(24, 8000, true);
+    v.setUint32(28, 16000, true);
+    v.setUint16(32, 2, true);
+    v.setUint16(34, 16, true);
+    text(36, "data");
+    v.setUint32(40, samples * 2, true);
+    const url = URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
+    const p = player();
+    p.src = url;
+    p.play().catch(() => {});
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
   function stopSpeaking() {
     ttsAbort.current?.abort();
     ttsAbort.current = null;
-    audioRef.current?.pause();
-    audioRef.current = null;
+    playerRef.current?.pause();
     window.speechSynthesis?.cancel();
   }
 
@@ -183,8 +221,8 @@ export default function Assistant({
   function playStream(stream: ReadableStream<Uint8Array>, signal: AbortSignal) {
     return new Promise<void>((resolve, reject) => {
       const source = new MediaSource();
-      const audio = new Audio(URL.createObjectURL(source));
-      audioRef.current = audio;
+      const audio = player();
+      audio.src = URL.createObjectURL(source);
       source.addEventListener(
         "sourceopen",
         async () => {
@@ -227,6 +265,13 @@ export default function Assistant({
     stopSpeaking();
     const controller = new AbortController();
     ttsAbort.current = controller;
+    // After dictation the OS audio session is still in recording mode and
+    // ducks the speaker; give it a moment to switch back.
+    if (spokeByVoice.current) {
+      spokeByVoice.current = false;
+      await new Promise((r) => setTimeout(r, 300));
+      if (controller.signal.aborted) return;
+    }
     try {
       const token = readStorage<{ access_token?: string } | null>(
         "bookly-session",
@@ -254,8 +299,8 @@ export default function Assistant({
           URL.revokeObjectURL(url);
           return;
         }
-        const audio = new Audio(url);
-        audioRef.current = audio;
+        const audio = player();
+        audio.src = url;
         audio.onended = () => URL.revokeObjectURL(url);
         await audio.play();
       }
@@ -274,6 +319,7 @@ export default function Assistant({
     const message = text.trim();
     if (!message || sending) return;
     if (!signedIn) return login();
+    unlockAudio(); // most send() calls originate from a tap — prime playback
     setInput("");
     setMessages((old) => [...old, { role: "user", text: message }]);
     setSending(true);
@@ -329,6 +375,7 @@ export default function Assistant({
     if (listening) return stopListening(false);
     setMicError("");
     stopSpeaking(); // the mic must not transcribe the bot's own voice
+    unlockAudio();
     const rec = new SpeechRecognitionImpl();
     rec.lang = "ru-RU";
     rec.interimResults = true;
@@ -353,7 +400,10 @@ export default function Assistant({
     rec.onend = () => {
       setListening(false);
       setInterim("");
-      if (!aborted.current && finalText.trim()) send(finalText);
+      if (!aborted.current && finalText.trim()) {
+        spokeByVoice.current = true;
+        send(finalText);
+      }
     };
     recognition.current = rec;
     setListening(true);
@@ -372,9 +422,13 @@ export default function Assistant({
               {firstName ? `, ${firstName}` : ""}
             </p>
             <h1 className="hero-title">
-              <span className="dim">Скажите,</span>
-              <span>к кому</span>
-              <span className="accent">записаться</span>
+              <span>Куда вас</span>
+              <span className="accent">
+                записать?
+                <span className="hero-star" aria-hidden="true">
+                  ✳
+                </span>
+              </span>
             </h1>
             <div className="hero-mic-zone">
               <button
@@ -601,34 +655,16 @@ export default function Assistant({
 
       {listening && (
         <div className="listen-overlay" role="dialog" aria-label="Голосовой ввод">
-          <div className="listen-top">
-            <button
-              className="listen-round"
-              aria-label="Отменить"
-              onClick={() => stopListening(true)}
-            >
-              ✕
-            </button>
-            <span className="listen-pill">
-              <span className="listen-dot" /> Слушаю…
-            </span>
-            <span className="listen-round listen-lang" aria-hidden="true">
-              RU
-            </span>
-          </div>
+          <span className="listen-pill">
+            <span className="listen-dot" /> Слушаю…
+          </span>
           <div className="listen-body">
-            <span className="listen-label">Вы говорите</span>
-            <p className="listen-transcript">
-              {interim || "…"}
-              <span className="listen-caret" aria-hidden="true" />
+            <span className="listen-orb" aria-hidden="true" />
+            <p className={`listen-transcript${interim ? "" : " placeholder"}`}>
+              {interim || "Говорите, я слушаю"}
             </p>
           </div>
           <div className="listen-bottom">
-            <div className="listen-wave" aria-hidden="true">
-              {Array.from({ length: 21 }, (_, i) => (
-                <span key={i} style={{ animationDelay: `${(i % 7) * 0.12}s` }} />
-              ))}
-            </div>
             <div className="listen-controls">
               <button
                 className="listen-round"
@@ -645,11 +681,17 @@ export default function Assistant({
                 aria-label="Готово, отправить"
                 onClick={() => stopListening(false)}
               >
-                <Square size={20} fill="currentColor" />
+                <Square size={18} fill="currentColor" />
               </button>
-              <span className="listen-round listen-ghost" aria-hidden="true" />
+              <button
+                className="listen-round"
+                aria-label="Отменить"
+                onClick={() => stopListening(true)}
+              >
+                ✕
+              </button>
             </div>
-            <span className="listen-hint">Нажмите, когда закончите</span>
+            <span className="listen-hint">Нажмите ■, когда закончите</span>
           </div>
         </div>
       )}
