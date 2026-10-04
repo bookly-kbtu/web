@@ -67,7 +67,7 @@ export default function App() {
     readStorage("bookly-session", null),
   );
   const [filters, setFilters] = useState(false);
-  const [layout, setLayout] = useState<"grid" | "map">("map");
+  const [layout, setLayout] = useState<"grid" | "map">("grid");
   const [stats, setStats] = useState<MarketStats | null>(null);
 
 
@@ -645,10 +645,6 @@ export default function App() {
         </main>
       )}
       <footer>
-        <a className="brand" href="#">
-          <img className="brand-logo" src="/logo-square.png" alt="Bookly" />
-        </a>
-        <span>Маленькие перемены. Хорошее настроение.</span>
         <span>© {new Date().getFullYear()} Bookly</span>
       </footer>
       <nav className="tab-bar" aria-label="Нижняя навигация">
