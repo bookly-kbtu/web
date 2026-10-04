@@ -8,10 +8,8 @@ import {
   SendHorizontal,
   Bot,
   Square,
-  Volume2,
-  VolumeX,
 } from "lucide-react";
-import { money, dateTime, readStorage, type Call, type Slot } from "./api";
+import { money, dateTime, type Call, type Slot } from "./api";
 
 export interface AiCandidate {
   master_id: string;
@@ -34,7 +32,6 @@ interface AiBooking {
 interface AiChatResponse {
   conversation_id: string;
   reply: string;
-  voice_reply: string;
   state: "clarify" | "recommend" | "pick_slot" | "confirm" | "booked" | "failed";
   candidates: AiCandidate[];
   slots: Slot[];
@@ -123,13 +120,10 @@ export default function Assistant({
   const [interim, setInterim] = useState("");
   const [sending, setSending] = useState(false);
   const [listening, setListening] = useState(false);
-  const [voiceOn, setVoiceOn] = useState(true);
   const [micError, setMicError] = useState("");
   const conversation = useRef<string | null>(null);
   const recognition = useRef<Recognition | null>(null);
   const aborted = useRef(false);
-  const voiceOnRef = useRef(voiceOn);
-  voiceOnRef.current = voiceOn;
   const feed = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -138,188 +132,17 @@ export default function Assistant({
     feed.current?.scrollTo({ top: feed.current.scrollHeight, behavior: "smooth" });
   }, [messages, sending]);
 
-  // One reusable <audio> element for all TTS playback. Mobile browsers only
-  // allow play() started from a user gesture; an element "unlocked" once in
-  // a tap handler may then be reused for playback that starts after awaits.
-  const playerRef = useRef<HTMLAudioElement | null>(null);
-  const ttsAbort = useRef<AbortController | null>(null);
-  const spokeByVoice = useRef(false);
-
-  function player(): HTMLAudioElement {
-    if (!playerRef.current) playerRef.current = new Audio();
-    return playerRef.current;
-  }
-
-  // Tiny silent WAV built on the fly: playing it inside the tap unlocks the
-  // element for later real playback (iOS/Android autoplay policy).
-  function unlockAudio() {
-    const samples = 8;
-    const buf = new ArrayBuffer(44 + samples * 2);
-    const v = new DataView(buf);
-    const text = (offset: number, s: string) => {
-      for (let i = 0; i < s.length; i++) v.setUint8(offset + i, s.charCodeAt(i));
-    };
-    text(0, "RIFF");
-    v.setUint32(4, 36 + samples * 2, true);
-    text(8, "WAVE");
-    text(12, "fmt ");
-    v.setUint32(16, 16, true);
-    v.setUint16(20, 1, true);
-    v.setUint16(22, 1, true);
-    v.setUint32(24, 8000, true);
-    v.setUint32(28, 16000, true);
-    v.setUint16(32, 2, true);
-    v.setUint16(34, 16, true);
-    text(36, "data");
-    v.setUint32(40, samples * 2, true);
-    const url = URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
-    const p = player();
-    p.src = url;
-    p.play().catch(() => {});
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
-
-  function stopSpeaking() {
-    ttsAbort.current?.abort();
-    ttsAbort.current = null;
-    playerRef.current?.pause();
-    window.speechSynthesis?.cancel();
-  }
-
   useEffect(
     () => () => {
       recognition.current?.abort();
-      stopSpeaking();
     },
     [],
   );
-
-  // Without an explicit voice the browser falls back to the system default,
-  // which is often a legacy robotic voice — or not Russian at all.
-  const voiceRef = useRef<SpeechSynthesisVoice | null>(null);
-  useEffect(() => {
-    const synth = window.speechSynthesis;
-    if (!synth) return;
-    const pick = () => {
-      const russian = synth
-        .getVoices()
-        .filter((v) => v.lang.toLowerCase().startsWith("ru"));
-      voiceRef.current =
-        russian.find((v) => /google/i.test(v.name)) ||
-        russian.find((v) => /milena|katya|yuri/i.test(v.name)) ||
-        russian.find((v) => !v.localService) ||
-        russian[0] ||
-        null;
-    };
-    pick();
-    synth.addEventListener("voiceschanged", pick);
-    return () => synth.removeEventListener("voiceschanged", pick);
-  }, []);
-
-  // Progressive playback: mp3 chunks go straight into a MediaSource buffer,
-  // so the voice starts before the whole file is generated.
-  function playStream(stream: ReadableStream<Uint8Array>, signal: AbortSignal) {
-    return new Promise<void>((resolve, reject) => {
-      const source = new MediaSource();
-      const audio = player();
-      audio.src = URL.createObjectURL(source);
-      source.addEventListener(
-        "sourceopen",
-        async () => {
-          const buffer = source.addSourceBuffer("audio/mpeg");
-          const reader = stream.getReader();
-          const append = (chunk: Uint8Array) =>
-            new Promise<void>((done, fail) => {
-              buffer.addEventListener("updateend", () => done(), { once: true });
-              buffer.addEventListener("error", () => fail(new Error("buffer")), {
-                once: true,
-              });
-              buffer.appendBuffer(chunk as BufferSource);
-            });
-          try {
-            let started = false;
-            for (;;) {
-              if (signal.aborted) break;
-              const { done, value } = await reader.read();
-              if (done) break;
-              await append(value);
-              if (!started) {
-                started = true;
-                await audio.play();
-              }
-            }
-            if (source.readyState === "open") source.endOfStream();
-            resolve();
-          } catch (e) {
-            reject(e as Error);
-          }
-        },
-        { once: true },
-      );
-    });
-  }
-
-  // Neural TTS from the AI service; browser speechSynthesis is the fallback.
-  async function speak(text: string) {
-    if (!voiceOnRef.current || !text) return;
-    stopSpeaking();
-    const controller = new AbortController();
-    ttsAbort.current = controller;
-    // After dictation the OS audio session is still in recording mode and
-    // ducks the speaker; give it a moment to switch back.
-    if (spokeByVoice.current) {
-      spokeByVoice.current = false;
-      await new Promise((r) => setTimeout(r, 300));
-      if (controller.signal.aborted) return;
-    }
-    try {
-      const token = readStorage<{ access_token?: string } | null>(
-        "bookly-session",
-        null,
-      )?.access_token;
-      if (!token) throw new Error("no session");
-      const response = await fetch("/ai/v1/assistant/tts", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ text }),
-        signal: controller.signal,
-      });
-      if (!response.ok || !response.body) throw new Error(`tts ${response.status}`);
-      const canStream =
-        "MediaSource" in window && MediaSource.isTypeSupported("audio/mpeg");
-      if (canStream) {
-        await playStream(response.body, controller.signal);
-      } else {
-        // Safari: MSE rarely accepts mp3 — play the full blob instead.
-        const url = URL.createObjectURL(await response.blob());
-        if (controller.signal.aborted) {
-          URL.revokeObjectURL(url);
-          return;
-        }
-        const audio = player();
-        audio.src = url;
-        audio.onended = () => URL.revokeObjectURL(url);
-        await audio.play();
-      }
-    } catch (e) {
-      if ((e as Error).name === "AbortError" || controller.signal.aborted) return;
-      if (!voiceOnRef.current || !window.speechSynthesis) return;
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = "ru-RU";
-      if (voiceRef.current) utterance.voice = voiceRef.current;
-      utterance.rate = 1.05;
-      window.speechSynthesis.speak(utterance);
-    }
-  }
 
   async function send(text: string) {
     const message = text.trim();
     if (!message || sending) return;
     if (!signedIn) return login();
-    unlockAudio(); // most send() calls originate from a tap — prime playback
     setInput("");
     setMessages((old) => [...old, { role: "user", text: message }]);
     setSending(true);
@@ -347,7 +170,6 @@ export default function Assistant({
               : undefined,
         },
       ]);
-      speak(plainText(response.voice_reply || "") || reply);
     } catch (e) {
       setMessages((old) => [
         ...old,
@@ -374,8 +196,6 @@ export default function Assistant({
     if (!signedIn) return login();
     if (listening) return stopListening(false);
     setMicError("");
-    stopSpeaking(); // the mic must not transcribe the bot's own voice
-    unlockAudio();
     const rec = new SpeechRecognitionImpl();
     rec.lang = "ru-RU";
     rec.interimResults = true;
@@ -400,10 +220,7 @@ export default function Assistant({
     rec.onend = () => {
       setListening(false);
       setInterim("");
-      if (!aborted.current && finalText.trim()) {
-        spokeByVoice.current = true;
-        send(finalText);
-      }
+      if (!aborted.current && finalText.trim()) send(finalText);
     };
     recognition.current = rec;
     setListening(true);
@@ -606,18 +423,6 @@ export default function Assistant({
           </div>
         )}
         <div className="dock-row">
-          <button
-            className="icon-button dock-sound"
-            aria-pressed={voiceOn}
-            aria-label={voiceOn ? "Выключить озвучку ответов" : "Включить озвучку ответов"}
-            title={voiceOn ? "Выключить озвучку" : "Включить озвучку"}
-            onClick={() => {
-              if (voiceOn) stopSpeaking();
-              setVoiceOn(!voiceOn);
-            }}
-          >
-            {voiceOn ? <Volume2 size={20} /> : <VolumeX size={20} />}
-          </button>
           <form
             className="dock-input"
             onSubmit={(e) => {
