@@ -67,6 +67,17 @@ export default function App() {
   );
   const [layout, setLayout] = useState<"grid" | "map">("grid");
   const [stats, setStats] = useState<MarketStats | null>(null);
+  const [assistantSeed, setAssistantSeed] = useState<{
+    text: string;
+    n: number;
+  } | null>(null);
+
+  function askAssistant(text: string) {
+    setSelected(null);
+    setAssistantSeed({ text, n: Date.now() });
+    setView("assistant");
+    window.scrollTo(0, 0);
+  }
 
 
   useEffect(() => {
@@ -295,6 +306,7 @@ export default function App() {
                 openBookings={() => openAccount("bookings")}
                 openSaved={() => setView("saved")}
                 syncSaved={() => setSaved(readStorage("bookly-favorites", []))}
+                seed={assistantSeed}
               />
             ) : view === "masters" ? (
               <Masters
@@ -680,7 +692,11 @@ export default function App() {
         </button>
       </nav>
       {selected && (
-        <FirmDetails id={selected} close={() => setSelected(null)} />
+        <FirmDetails
+          id={selected}
+          close={() => setSelected(null)}
+          askAssistant={askAssistant}
+        />
       )}
       {authOpen && (
         <Auth

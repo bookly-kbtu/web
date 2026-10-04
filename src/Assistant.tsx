@@ -172,6 +172,7 @@ export default function Assistant({
   openBookings,
   openSaved,
   syncSaved,
+  seed,
 }: {
   call: Call;
   signedIn: boolean;
@@ -180,6 +181,7 @@ export default function Assistant({
   openBookings: () => void;
   openSaved: () => void;
   syncSaved: () => void;
+  seed?: { text: string; n: number } | null;
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -221,6 +223,16 @@ export default function Assistant({
     },
     [],
   );
+
+  // A tap in the catalogue hands the assistant a ready-made request.
+  const seenSeed = useRef(0);
+  useEffect(() => {
+    if (!seed || seed.n === seenSeed.current) return;
+    seenSeed.current = seed.n;
+    if (!signedIn) return login();
+    send(seed.text);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seed]);
 
   async function send(text: string) {
     const message = text.trim();

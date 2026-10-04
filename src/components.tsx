@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   ArrowUpRight,
+  Sparkles,
   Clock3,
   Heart,
   MapPin,
@@ -141,7 +142,15 @@ export function FirmCard({
   );
 }
 
-export function FirmDetails({ id, close }: { id: string; close: () => void }) {
+export function FirmDetails({
+  id,
+  close,
+  askAssistant,
+}: {
+  id: string;
+  close: () => void;
+  askAssistant?: (text: string) => void;
+}) {
   const [data, setData] = useState<{
     firm: Firm;
     photos: { photo_url: string }[];
@@ -215,6 +224,15 @@ export function FirmDetails({ id, close }: { id: string; close: () => void }) {
             {data.firm.description && (
               <p className="description">{data.firm.description}</p>
             )}
+            {askAssistant && (
+              <button
+                className="ask-ai"
+                onClick={() => askAssistant(`Запиши меня в «${data.firm.name}»`)}
+              >
+                <Sparkles size={17} />
+                Записаться через ассистента
+              </button>
+            )}
             <div className="external-map-links">
               <a
                 className="map-link"
@@ -266,7 +284,21 @@ export function FirmDetails({ id, close }: { id: string; close: () => void }) {
                         <small>{service.duration_minutes} мин</small>
                       )}
                     </div>
-                    <strong>{price(service)}</strong>
+                    <div className="service-side">
+                      <strong>{price(service)}</strong>
+                      {askAssistant && (
+                        <button
+                          className="text-button"
+                          onClick={() =>
+                            askAssistant(
+                              `Запиши меня в «${data.firm.name}» на «${service.name}»`,
+                            )
+                          }
+                        >
+                          Записаться
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))
               ) : (
