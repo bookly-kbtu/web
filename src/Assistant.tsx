@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import confetti from "canvas-confetti";
 import {
   CalendarCheck,
   Check,
@@ -7,16 +8,20 @@ import {
   Mic,
   Navigation,
   SendHorizontal,
+  Heart,
   Bot,
   Square,
   X,
 } from "lucide-react";
 import {
+  api,
   money,
   dateTime,
+  readStorage,
   statusLabels,
   type BookingStatus,
   type Call,
+  type Firm,
   type Slot,
 } from "./api";
 
@@ -52,6 +57,8 @@ interface AiChatResponse {
   slots: Slot[];
   booking: AiBooking | null;
   bookings: AiAgendaItem[];
+  favorites_add: { id: string; name: string }[];
+  favorites_show: boolean;
 }
 interface Message {
   role: "user" | "assistant";
@@ -60,6 +67,7 @@ interface Message {
   slots?: Slot[];
   booking?: AiBooking | null;
   agenda?: AiAgendaItem[];
+  favorites?: { id: string; name: string; address_text?: string | null }[];
   quickReplies?: string[];
 }
 
@@ -112,6 +120,41 @@ function initials(name: string) {
     .toUpperCase();
 }
 
+// Booking success: a short chime (synthesised, no asset) and coral confetti.
+function celebrate() {
+  try {
+    const Ctx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext })
+        .webkitAudioContext;
+    const ctx = new Ctx();
+    [523.25, 659.25, 783.99].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const at = ctx.currentTime + i * 0.09;
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, at);
+      gain.gain.exponentialRampToValueAtTime(0.18, at + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.5);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(at);
+      osc.stop(at + 0.55);
+    });
+    setTimeout(() => ctx.close(), 1500);
+  } catch {
+    /* sound is a nicety; never block the flow */
+  }
+  confetti({
+    particleCount: 90,
+    spread: 75,
+    startVelocity: 32,
+    origin: { y: 0.72 },
+    colors: ["#ff596c", "#c52e49", "#ffe2e6", "#ffd9c4", "#ffffff"],
+    disableForReducedMotion: true,
+  });
+}
+
 function slotLabel(slot: Slot) {
   return new Date(slot.starts_at).toLocaleTimeString("ru-RU", {
     hour: "2-digit",
@@ -125,12 +168,16 @@ export default function Assistant({
   firstName,
   login,
   openBookings,
+  openSaved,
+  syncSaved,
 }: {
   call: Call;
   signedIn: boolean;
   firstName?: string;
   login: () => void;
   openBookings: () => void;
+  openSaved: () => void;
+  syncSaved: () => void;
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -165,14 +212,31 @@ export default function Assistant({
     setMessages((old) => [...old, { role: "user", text: message }]);
     setSending(true);
     try {
+      const favorites = readStorage<Firm[]>("bookly-favorites", [])
+        .slice(0, 50)
+        .map((f) => ({ id: f.id, name: f.name }));
       const response = await call<AiChatResponse>("/ai/v1/assistant/chat", {
         method: "POST",
         body: JSON.stringify({
           conversation_id: conversation.current,
           message,
+          favorites,
         }),
       });
       conversation.current = response.conversation_id;
+      // The assistant added catalogue firms to favourites: hydrate them with
+      // full details and persist, so the Избранное tab shows real cards.
+      if (response.favorites_add.length) {
+        const current = readStorage<Firm[]>("bookly-favorites", []);
+        for (const item of response.favorites_add) {
+          if (current.some((f) => f.id === item.id)) continue;
+          const firm = await api<Firm>(`/market/firms/${item.id}`).catch(() => null);
+          if (firm) current.push(firm);
+        }
+        localStorage.setItem("bookly-favorites", JSON.stringify(current));
+        syncSaved();
+      }
+      if (response.booking) celebrate();
       const reply = plainText(response.reply);
       setMessages((old) => [
         ...old,
@@ -183,6 +247,13 @@ export default function Assistant({
           slots: response.slots,
           booking: response.booking,
           agenda: response.bookings,
+          favorites: response.favorites_show
+            ? readStorage<Firm[]>("bookly-favorites", []).map((f) => ({
+                id: f.id,
+                name: f.name,
+                address_text: f.address_text,
+              }))
+            : undefined,
           quickReplies:
             response.state === "pick_slot"
               ? ["Другая дата", "А дешевле есть?"]
@@ -347,6 +418,30 @@ export default function Assistant({
                     ))}
                   </div>
                 )}
+                {!!message.favorites && (
+                  <div className="ai-agenda">
+                    {message.favorites.length === 0 && (
+                      <div className="ai-agenda-row">
+                        <div>
+                          <strong>Пока пусто</strong>
+                          <span>Скажите «добавь в избранное…» или жмите сердечко в каталоге</span>
+                        </div>
+                      </div>
+                    )}
+                    {message.favorites.slice(0, 6).map((f) => (
+                      <div className="ai-agenda-row" key={f.id}>
+                        <div>
+                          <strong>{f.name}</strong>
+                          {f.address_text && <span>{f.address_text}</span>}
+                        </div>
+                      </div>
+                    ))}
+                    <button className="agenda-all" onClick={openSaved}>
+                      <Heart size={15} />
+                      Открыть избранное
+                    </button>
+                  </div>
+                )}
                 {!!message.quickReplies?.length && (
                   <div className="ai-quick">
                     {message.quickReplies.map((reply) => (
@@ -506,9 +601,6 @@ export default function Assistant({
       {listening &&
         createPortal(
           <div className="listen-overlay" role="dialog" aria-label="Голосовой ввод">
-          <span className="listen-pill">
-            <span className="listen-dot" /> Слушаю…
-          </span>
           <div className="listen-body">
             <span className="listen-orb" aria-hidden="true" />
             <p className={`listen-transcript${interim ? "" : " placeholder"}`}>

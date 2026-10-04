@@ -269,7 +269,7 @@ export default function App() {
           <ArrowUpRight size={15} />
         </button>
       </header>
-      {session && (
+      {session && view === "account" && accountTab === "profile" && (
         <button
           className="floating-bell"
           aria-label={`Уведомления${unread ? `: ${unread} новых` : ""}`}
@@ -295,6 +295,8 @@ export default function App() {
                 firstName={session?.user.first_name}
                 login={() => setAuthOpen(true)}
                 openBookings={() => openAccount("bookings")}
+                openSaved={() => setView("saved")}
+                syncSaved={() => setSaved(readStorage("bookly-favorites", []))}
               />
             ) : view === "masters" ? (
               <Masters

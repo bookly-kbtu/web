@@ -2743,3 +2743,14 @@ footer {
     border-radius: 26px;
   }
 }
+
+/* Quiet filter button: no highlighted box */
+.filter-button,
+.filter-button.active {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+}
+.filter-button.active {
+  color: var(--accent);
+}
