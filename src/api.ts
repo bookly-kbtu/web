@@ -199,9 +199,14 @@ export async function api<T>(
   options: RequestInit = {},
 ): Promise<T> {
   let response: Response;
+  // The AI assistant lives on its own service: /ai/* is proxied (or served)
+  // as-is, without the Go API base prefix.
+  const base = path.startsWith("/ai/")
+    ? import.meta.env.VITE_AI_URL || ""
+    : import.meta.env.VITE_API_URL || "/api/v1";
   try {
     response = await fetch(
-      `${import.meta.env.VITE_API_URL || "/api/v1"}${path}`,
+      `${base}${path}`,
       {
         ...options,
         // FormData sets its own multipart boundary.

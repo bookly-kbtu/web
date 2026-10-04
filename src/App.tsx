@@ -5,6 +5,7 @@ import {
   ArrowRight,
   ArrowUpRight,
   Bell,
+  CalendarDays,
   Heart,
   LayoutGrid,
   Map,
@@ -34,6 +35,7 @@ import type { AccountTab } from "./Account";
 const MapExplore = lazy(() => import("./MapExplore"));
 const Masters = lazy(() => import("./Masters"));
 const Account = lazy(() => import("./Account"));
+const Assistant = lazy(() => import("./Assistant"));
 
 const PAGE_SIZE = 12;
 
@@ -51,9 +53,9 @@ export default function App() {
   const [error, setError] = useState("");
   const [filtersError, setFiltersError] = useState(false);
   const [retry, setRetry] = useState(0);
-  const [view, setView] = useState<"catalog" | "saved" | "masters" | "account">(
-    "catalog",
-  );
+  const [view, setView] = useState<
+    "assistant" | "catalog" | "saved" | "masters" | "account"
+  >("assistant");
   const [accountTab, setAccountTab] = useState<AccountTab>("bookings");
   const [unread, setUnread] = useState(0);
   const [saved, setSaved] = useState<Firm[]>(() =>
@@ -214,7 +216,7 @@ export default function App() {
           href="#"
           onClick={(e) => {
             e.preventDefault();
-            setView("catalog");
+            setView("assistant");
             reset();
           }}
         >
@@ -224,6 +226,12 @@ export default function App() {
           Bookly
         </a>
         <nav aria-label="Основная навигация">
+          <button
+            className={view === "assistant" ? "active" : ""}
+            onClick={() => setView("assistant")}
+          >
+            Ассистент
+          </button>
           <button
             className={view === "catalog" ? "active" : ""}
             onClick={() => setView("catalog")}
@@ -263,8 +271,8 @@ export default function App() {
           <ArrowUpRight size={15} />
         </button>
       </header>
-      {view === "masters" || view === "account" ? (
-        <main>
+      {view === "assistant" || view === "masters" || view === "account" ? (
+        <main className={view === "assistant" ? "assistant-main" : ""}>
           <Suspense
             fallback={
               <div className="empty" role="status">
@@ -272,7 +280,15 @@ export default function App() {
               </div>
             }
           >
-            {view === "masters" ? (
+            {view === "assistant" ? (
+              <Assistant
+                call={call}
+                signedIn={signedIn}
+                firstName={session?.user.first_name}
+                login={() => setAuthOpen(true)}
+                openBookings={() => openAccount("bookings")}
+              />
+            ) : view === "masters" ? (
               <Masters
                 call={call}
                 signedIn={signedIn}
@@ -630,6 +646,40 @@ export default function App() {
         <span>Маленькие перемены. Хорошее настроение.</span>
         <span>© {new Date().getFullYear()} Bookly</span>
       </footer>
+      <nav className="tab-bar" aria-label="Нижняя навигация">
+        <button
+          className={view === "assistant" ? "active" : ""}
+          onClick={() => setView("assistant")}
+        >
+          <Sparkles size={21} />
+          <span>Ассистент</span>
+        </button>
+        <button
+          className={view === "catalog" || view === "saved" ? "active" : ""}
+          onClick={() => setView("catalog")}
+        >
+          <Search size={21} />
+          <span>Поиск</span>
+        </button>
+        <button
+          className={
+            view === "account" && accountTab === "bookings" ? "active" : ""
+          }
+          onClick={() => openAccount("bookings")}
+        >
+          <CalendarDays size={21} />
+          <span>Записи</span>
+        </button>
+        <button
+          className={
+            view === "account" && accountTab !== "bookings" ? "active" : ""
+          }
+          onClick={() => openAccount("profile")}
+        >
+          <UserRound size={21} />
+          <span>Профиль</span>
+        </button>
+      </nav>
       {selected && (
         <FirmDetails id={selected} close={() => setSelected(null)} />
       )}
