@@ -11,7 +11,7 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
-import { money, dateTime, type Call, type Slot } from "./api";
+import { money, dateTime, readStorage, type Call, type Slot } from "./api";
 
 export interface AiCandidate {
   master_id: string;
@@ -137,10 +137,17 @@ export default function Assistant({
     feed.current?.scrollTo({ top: feed.current.scrollHeight, behavior: "smooth" });
   }, [messages, sending]);
 
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  function stopSpeaking() {
+    audioRef.current?.pause();
+    audioRef.current = null;
+    window.speechSynthesis?.cancel();
+  }
+
   useEffect(
     () => () => {
       recognition.current?.abort();
-      window.speechSynthesis?.cancel();
+      stopSpeaking();
     },
     [],
   );
@@ -167,14 +174,42 @@ export default function Assistant({
     return () => synth.removeEventListener("voiceschanged", pick);
   }, []);
 
-  function speak(text: string) {
-    if (!voiceOnRef.current || !window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "ru-RU";
-    if (voiceRef.current) utterance.voice = voiceRef.current;
-    utterance.rate = 1.05;
-    window.speechSynthesis.speak(utterance);
+  // Neural TTS from the AI service; browser speechSynthesis is the fallback.
+  async function speak(text: string) {
+    if (!voiceOnRef.current) return;
+    stopSpeaking();
+    try {
+      const token = readStorage<{ access_token?: string } | null>(
+        "bookly-session",
+        null,
+      )?.access_token;
+      if (!token) throw new Error("no session");
+      const response = await fetch("/ai/v1/assistant/tts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ text }),
+      });
+      if (!response.ok) throw new Error(`tts ${response.status}`);
+      const url = URL.createObjectURL(await response.blob());
+      if (!voiceOnRef.current) {
+        URL.revokeObjectURL(url);
+        return;
+      }
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.onended = () => URL.revokeObjectURL(url);
+      await audio.play();
+    } catch {
+      if (!voiceOnRef.current || !window.speechSynthesis) return;
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = "ru-RU";
+      if (voiceRef.current) utterance.voice = voiceRef.current;
+      utterance.rate = 1.05;
+      window.speechSynthesis.speak(utterance);
+    }
   }
 
   async function send(text: string) {
@@ -235,7 +270,7 @@ export default function Assistant({
     if (!signedIn) return login();
     if (listening) return stopListening(false);
     setMicError("");
-    window.speechSynthesis?.cancel();
+    stopSpeaking(); // the mic must not transcribe the bot's own voice
     const rec = new SpeechRecognitionImpl();
     rec.lang = "ru-RU";
     rec.interimResults = true;
@@ -465,7 +500,7 @@ export default function Assistant({
             aria-label={voiceOn ? "Выключить озвучку ответов" : "Включить озвучку ответов"}
             title={voiceOn ? "Выключить озвучку" : "Включить озвучку"}
             onClick={() => {
-              if (voiceOn) window.speechSynthesis?.cancel();
+              if (voiceOn) stopSpeaking();
               setVoiceOn(!voiceOn);
             }}
           >
