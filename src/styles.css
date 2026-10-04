@@ -2850,3 +2850,15 @@ footer {
   font-weight: 700;
   color: var(--accent);
 }
+
+/* Booking card actions: wrap instead of clipping the third button */
+.ai-booking-actions {
+  flex-wrap: wrap;
+}
+.ai-booking-actions a,
+.ai-booking-actions button {
+  flex: 1 1 calc(50% - 5px);
+  white-space: nowrap;
+  font-size: 13.5px;
+  padding: 12px 8px;
+}
