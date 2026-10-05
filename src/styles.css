@@ -2892,3 +2892,16 @@ footer {
 .service-side .text-button {
   font-size: 12.5px;
 }
+
+/* No footer: pages fill the viewport with the wash all the way down */
+footer {
+  display: none;
+}
+main {
+  min-height: calc(100dvh - 94px);
+}
+@media (max-width: 700px) {
+  main {
+    min-height: 100dvh;
+  }
+}

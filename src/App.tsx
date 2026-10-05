@@ -659,9 +659,6 @@ export default function App() {
           </section>
         </main>
       )}
-      <footer>
-        <span>© {new Date().getFullYear()} Bookly</span>
-      </footer>
       <nav className="tab-bar" aria-label="Нижняя навигация">
         <button
           className={view === "catalog" ? "active" : ""}
