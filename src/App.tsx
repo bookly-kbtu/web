@@ -92,6 +92,18 @@ export default function App() {
     };
   }, [retry]);
 
+  // Fade the boot splash out once the app has mounted (it lives in
+  // index.html so it paints before the bundle loads).
+  useEffect(() => {
+    const splash = document.getElementById("splash");
+    if (!splash) return;
+    const show = setTimeout(() => {
+      splash.classList.add("splash-hide");
+      setTimeout(() => splash.remove(), 500);
+    }, 450);
+    return () => clearTimeout(show);
+  }, []);
+
   const sessionRef = useRef(session);
   function updateSession(value: Session | null) {
     sessionRef.current = value;
